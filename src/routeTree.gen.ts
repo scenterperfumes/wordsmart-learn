@@ -10,33 +10,60 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedWsRouteImport } from './routes/_authenticated/_ws'
+import { Route as AuthenticatedWsStudyRouteImport } from './routes/_authenticated/_ws/study'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWsRoute = AuthenticatedWsRouteImport.update({
+  id: '/_ws',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWsStudyRoute = AuthenticatedWsStudyRouteImport.update({
+  id: '/study',
+  path: '/study',
+  getParentRoute: () => AuthenticatedWsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/study': typeof AuthenticatedWsStudyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/study': typeof AuthenticatedWsStudyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/_ws': typeof AuthenticatedWsRouteWithChildren
+  '/_authenticated/_ws/study': typeof AuthenticatedWsStudyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/study'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/study'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/_ws'
+    | '/_authenticated/_ws/study'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +75,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_ws': {
+      id: '/_authenticated/_ws'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedWsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_ws/study': {
+      id: '/_authenticated/_ws/study'
+      path: '/study'
+      fullPath: '/study'
+      preLoaderRoute: typeof AuthenticatedWsStudyRouteImport
+      parentRoute: typeof AuthenticatedWsRoute
+    }
   }
 }
 
+interface AuthenticatedWsRouteChildren {
+  AuthenticatedWsStudyRoute: typeof AuthenticatedWsStudyRoute
+}
+
+const AuthenticatedWsRouteChildren: AuthenticatedWsRouteChildren = {
+  AuthenticatedWsStudyRoute: AuthenticatedWsStudyRoute,
+}
+
+const AuthenticatedWsRouteWithChildren = AuthenticatedWsRoute._addFileChildren(
+  AuthenticatedWsRouteChildren,
+)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedWsRoute: typeof AuthenticatedWsRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedWsRoute: AuthenticatedWsRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
