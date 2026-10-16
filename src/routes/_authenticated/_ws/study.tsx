@@ -77,7 +77,7 @@ function StudyPage() {
     setFace("front");
     setPicked(null);
     setJiji({ s: "IDLE", m: "Next card! What do you think it means?" });
-    if (isPaid) saveLastCard(deck[n].master_id);
+    if (isPaid) saveLastCard(deck[n]!.master_id);
   };
 
   useEffect(() => {
@@ -226,10 +226,10 @@ function StudyPage() {
         <div className="rounded-2xl border bg-card p-10 text-center text-sm text-muted-foreground">No cards match these filters.</div>
       ) : (
         <div
-          onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+          onTouchStart={(e) => (touchX.current = e.touches[0]!.clientX)}
           onTouchEnd={(e) => {
             if (touchX.current === null) return;
-            const dx = e.changedTouches[0].clientX - touchX.current;
+            const dx = e.changedTouches[0]!.clientX - touchX.current;
             if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1);
             touchX.current = null;
           }}
@@ -329,7 +329,7 @@ function Pill({ label, value, tone }: { label: string; value: string; tone?: "su
   );
 }
 
-function StatusTag({ st }: { st?: string }) {
+function StatusTag({ st }: { st?: string | undefined }) {
   if (st === "learned") return <span className="rounded bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success">Cleared</span>;
   if (st === "weak") return <span className="rounded bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">Practice</span>;
   return <span className="rounded bg-elevated px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">New</span>;

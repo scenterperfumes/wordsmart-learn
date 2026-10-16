@@ -43,7 +43,7 @@ function QuizPage() {
 
   const base = isPaid ? words : trialHand;
   const candidates = base.filter((w) => {
-    if (letters.length && !letters.includes(w.word[0])) return false;
+    if (letters.length && !letters.includes(w.word[0]!)) return false;
     const st = history[w.word]?.status;
     if (pool === "weak") return st === "weak";
     if (pool === "learned") return st === "learned";
@@ -52,7 +52,7 @@ function QuizPage() {
 
   const start = () => {
     const picks = shuffle(candidates).slice(0, len);
-    setQs(picks.map((w) => buildQuestion(w, format === "mixed" ? BASE_FORMATS[Math.floor(Math.random() * 5)] : format, base)));
+    setQs(picks.map((w) => buildQuestion(w, format === "mixed" ? BASE_FORMATS[Math.floor(Math.random() * 5)]! : format, base)));
     setI(0);
     setPicked(null);
     setScore(0);
@@ -120,7 +120,7 @@ function QuizPage() {
     );
   }
 
-  const q = qs[i];
+  const q = qs[i]!;
   const choose = (o: string, e: React.MouseEvent) => {
     if (picked) return;
     setPicked(o);
@@ -200,7 +200,7 @@ function Chips({ value, onChange, items }: { value: string; onChange: (v: string
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map(([v, l]) => (
-        <button key={v} onClick={() => onChange(v)} className={cn("rounded-lg border px-3 py-1.5 text-xs font-semibold", value === v ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
+        <button key={v} onClick={() => onChange(v!)} className={cn("rounded-lg border px-3 py-1.5 text-xs font-semibold", value === v ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
           {l}
         </button>
       ))}

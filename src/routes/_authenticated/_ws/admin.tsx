@@ -51,7 +51,7 @@ function Payments() {
   });
   const act = async (id: string, approve: boolean) => {
     const { error } = await supabase.rpc("admin_review_payment", { _id: id, _approve: approve });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(approve ? "Approved — pass activated" : "Rejected");
     qc.invalidateQueries({ queryKey: ["admin-payments"] });
   };
@@ -85,18 +85,18 @@ function Users() {
       .select("id,email,subscription_status,subscription_expires_at,device_1_name,device_2_name")
       .ilike("email", `%${email.trim()}%`)
       .limit(20);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setRows(data);
   };
   const extend = async (id: string, months: number) => {
     const { error } = await supabase.rpc("admin_extend", { _user: id, _months: months });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`Extended by ${months} month(s)`);
     search();
   };
   const clear = async (id: string) => {
     const { error } = await supabase.rpc("admin_clear_devices", { _user: id });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Devices cleared");
     search();
   };
@@ -133,7 +133,7 @@ function parseWords(text: string): Record<string, string>[] {
     return new Function(`return (${arr.startsWith("[") ? arr : t})`)();
   }
   const [head, ...lines] = t.split(/\r?\n/).filter(Boolean);
-  const cols = head.split(",").map((c) => c.trim());
+  const cols = head!.split(",").map((c) => c.trim());
   return lines.map((l) => {
     const cells = l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)?.map((c) => c.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim()) ?? [];
     return Object.fromEntries(cols.map((c, i) => [c, cells[i] ?? ""]));
@@ -147,15 +147,15 @@ function Uploader() {
   const upload = async () => {
     let words: Record<string, string>[];
     try {
-      words = parseWords(text).filter((w) => w.word);
+      words = parseWords(text).filter((w) => w["word"]);
     } catch {
-      return toast.error("Couldn't read that. Paste a JSON array, the wordsData block, or CSV.");
+      { toast.error("Couldn't read that. Paste a JSON array, the wordsData block, or CSV."); return; }
     }
-    if (!words.length) return toast.error("No words found.");
+    if (!words.length) { toast.error("No words found."); return; }
     setBusy(true);
     const { data, error } = await supabase.rpc("admin_upsert_words", { _words: words, _mark_free: markFree });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`${data} words saved`);
   };
   return (

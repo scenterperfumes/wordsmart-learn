@@ -22,8 +22,8 @@ export function PaywallModal() {
   const sel = PLANS.find((p) => p.months === plan)!;
 
   const submit = async () => {
-    if (!/^01\d{9}$/.test(phone)) return toast.error("Enter an 11-digit phone number starting with 01.");
-    if (trx.trim().length < 6) return toast.error("Enter a valid Transaction ID.");
+    if (!/^01\d{9}$/.test(phone)) { toast.error("Enter an 11-digit phone number starting with 01."); return; }
+    if (trx.trim().length < 6) { toast.error("Enter a valid Transaction ID."); return; }
     setBusy(true);
     const { error } = await supabase.from("payment_requests").insert({
       user_id: userId,
@@ -35,7 +35,7 @@ export function PaywallModal() {
       trx_id: trx.trim().toUpperCase(),
     });
     setBusy(false);
-    if (error) return toast.error(error.code === "23505" ? "This Transaction ID was already submitted." : "Submission failed. Try again.");
+    if (error) { toast.error(error.code === "23505" ? "This Transaction ID was already submitted." : "Submission failed. Try again."); return; }
     toast.success("Payment submitted. We'll verify it shortly.");
     setPhone("");
     setTrx("");
