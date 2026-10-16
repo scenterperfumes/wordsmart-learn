@@ -11,8 +11,8 @@ describe("study rules", () => {
   });
 
   it("daily target divides unlearned words by days left to the exam", () => {
-    // 2026-11-20 -> 2026-11-30 = 10 days left; 95 words -> 10/day
-    expect(dailyTarget(95, "2026-11-30", new Date("2026-11-20T12:00:00"))).toBe(10);
+    // noon on 11-20 -> end of 11-30 = 11 days left; 95 words -> 9/day
+    expect(dailyTarget(95, "2026-11-30", new Date("2026-11-20T12:00:00"))).toBe(9);
     expect(dailyTarget(0, "2026-11-30", new Date("2026-11-20T12:00:00"))).toBe(0);
   });
 
