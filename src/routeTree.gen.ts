@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedWsRouteImport } from './routes/_authenticated/_ws'
+import { Route as AuthenticatedWsAdminRouteImport } from './routes/_authenticated/_ws/admin'
+import { Route as AuthenticatedWsQuizRouteImport } from './routes/_authenticated/_ws/quiz'
 import { Route as AuthenticatedWsStudyRouteImport } from './routes/_authenticated/_ws/study'
+import { Route as AuthenticatedWsVaultRouteImport } from './routes/_authenticated/_ws/vault'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,38 +30,65 @@ const AuthenticatedWsRoute = AuthenticatedWsRouteImport.update({
   id: '/_ws',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedWsAdminRoute = AuthenticatedWsAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedWsRoute,
+} as any)
+const AuthenticatedWsQuizRoute = AuthenticatedWsQuizRouteImport.update({
+  id: '/quiz',
+  path: '/quiz',
+  getParentRoute: () => AuthenticatedWsRoute,
+} as any)
 const AuthenticatedWsStudyRoute = AuthenticatedWsStudyRouteImport.update({
   id: '/study',
   path: '/study',
   getParentRoute: () => AuthenticatedWsRoute,
 } as any)
+const AuthenticatedWsVaultRoute = AuthenticatedWsVaultRouteImport.update({
+  id: '/vault',
+  path: '/vault',
+  getParentRoute: () => AuthenticatedWsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AuthenticatedWsAdminRoute
+  '/quiz': typeof AuthenticatedWsQuizRoute
   '/study': typeof AuthenticatedWsStudyRoute
+  '/vault': typeof AuthenticatedWsVaultRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AuthenticatedWsAdminRoute
+  '/quiz': typeof AuthenticatedWsQuizRoute
   '/study': typeof AuthenticatedWsStudyRoute
+  '/vault': typeof AuthenticatedWsVaultRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/_ws': typeof AuthenticatedWsRouteWithChildren
+  '/_authenticated/_ws/admin': typeof AuthenticatedWsAdminRoute
+  '/_authenticated/_ws/quiz': typeof AuthenticatedWsQuizRoute
   '/_authenticated/_ws/study': typeof AuthenticatedWsStudyRoute
+  '/_authenticated/_ws/vault': typeof AuthenticatedWsVaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/study'
+  fullPaths: '/' | '/admin' | '/quiz' | '/study' | '/vault'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/study'
+  to: '/' | '/admin' | '/quiz' | '/study' | '/vault'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/_authenticated/_ws'
+    | '/_authenticated/_ws/admin'
+    | '/_authenticated/_ws/quiz'
     | '/_authenticated/_ws/study'
+    | '/_authenticated/_ws/vault'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -89,6 +119,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/_ws/admin': {
+      id: '/_authenticated/_ws/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedWsAdminRouteImport
+      parentRoute: typeof AuthenticatedWsRoute
+    }
+    '/_authenticated/_ws/quiz': {
+      id: '/_authenticated/_ws/quiz'
+      path: '/quiz'
+      fullPath: '/quiz'
+      preLoaderRoute: typeof AuthenticatedWsQuizRouteImport
+      parentRoute: typeof AuthenticatedWsRoute
+    }
     '/_authenticated/_ws/study': {
       id: '/_authenticated/_ws/study'
       path: '/study'
@@ -96,15 +140,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWsStudyRouteImport
       parentRoute: typeof AuthenticatedWsRoute
     }
+    '/_authenticated/_ws/vault': {
+      id: '/_authenticated/_ws/vault'
+      path: '/vault'
+      fullPath: '/vault'
+      preLoaderRoute: typeof AuthenticatedWsVaultRouteImport
+      parentRoute: typeof AuthenticatedWsRoute
+    }
   }
 }
 
 interface AuthenticatedWsRouteChildren {
+  AuthenticatedWsAdminRoute: typeof AuthenticatedWsAdminRoute
+  AuthenticatedWsQuizRoute: typeof AuthenticatedWsQuizRoute
   AuthenticatedWsStudyRoute: typeof AuthenticatedWsStudyRoute
+  AuthenticatedWsVaultRoute: typeof AuthenticatedWsVaultRoute
 }
 
 const AuthenticatedWsRouteChildren: AuthenticatedWsRouteChildren = {
+  AuthenticatedWsAdminRoute: AuthenticatedWsAdminRoute,
+  AuthenticatedWsQuizRoute: AuthenticatedWsQuizRoute,
   AuthenticatedWsStudyRoute: AuthenticatedWsStudyRoute,
+  AuthenticatedWsVaultRoute: AuthenticatedWsVaultRoute,
 }
 
 const AuthenticatedWsRouteWithChildren = AuthenticatedWsRoute._addFileChildren(
