@@ -14,16 +14,192 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      payment_requests: {
+        Row: {
+          amount_bdt: number
+          created_at: string
+          email: string | null
+          id: string
+          plan_months: number
+          sender_phone: string
+          status: string
+          trx_id: string
+          user_id: string
+          wallet: string
+        }
+        Insert: {
+          amount_bdt: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          plan_months: number
+          sender_phone: string
+          status?: string
+          trx_id: string
+          user_id: string
+          wallet: string
+        }
+        Update: {
+          amount_bdt?: number
+          created_at?: string
+          email?: string | null
+          id?: string
+          plan_months?: number
+          sender_phone?: string
+          status?: string
+          trx_id?: string
+          user_id?: string
+          wallet?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          daily_log: Json
+          device_1_id: string | null
+          device_1_name: string | null
+          device_2_id: string | null
+          device_2_name: string | null
+          email: string | null
+          id: string
+          last_device_reset_at: string | null
+          last_master_id: number
+          subscription_expires_at: string | null
+          subscription_status: string
+          target_exam_date: string
+          word_history: Json
+        }
+        Insert: {
+          created_at?: string
+          daily_log?: Json
+          device_1_id?: string | null
+          device_1_name?: string | null
+          device_2_id?: string | null
+          device_2_name?: string | null
+          email?: string | null
+          id: string
+          last_device_reset_at?: string | null
+          last_master_id?: number
+          subscription_expires_at?: string | null
+          subscription_status?: string
+          target_exam_date?: string
+          word_history?: Json
+        }
+        Update: {
+          created_at?: string
+          daily_log?: Json
+          device_1_id?: string | null
+          device_1_name?: string | null
+          device_2_id?: string | null
+          device_2_name?: string | null
+          email?: string | null
+          id?: string
+          last_device_reset_at?: string | null
+          last_master_id?: number
+          subscription_expires_at?: string | null
+          subscription_status?: string
+          target_exam_date?: string
+          word_history?: Json
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      words_vault: {
+        Row: {
+          ant: string | null
+          is_free_trial: boolean
+          master_id: number
+          meaning_bn: string | null
+          meaning_en: string | null
+          pos: string | null
+          sentence: string | null
+          syn: string | null
+          word: string
+        }
+        Insert: {
+          ant?: string | null
+          is_free_trial?: boolean
+          master_id: number
+          meaning_bn?: string | null
+          meaning_en?: string | null
+          pos?: string | null
+          sentence?: string | null
+          syn?: string | null
+          word: string
+        }
+        Update: {
+          ant?: string | null
+          is_free_trial?: boolean
+          master_id?: number
+          meaning_bn?: string | null
+          meaning_en?: string | null
+          pos?: string | null
+          sentence?: string | null
+          syn?: string | null
+          word?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_clear_devices: { Args: { _user: string }; Returns: undefined }
+      admin_extend: {
+        Args: { _months: number; _user: string }
+        Returns: undefined
+      }
+      admin_review_payment: {
+        Args: { _approve: boolean; _id: string }
+        Returns: undefined
+      }
+      admin_upsert_words: {
+        Args: { _mark_free: boolean; _words: Json }
+        Returns: number
+      }
+      claim_device: {
+        Args: { _device_id: string; _device_name: string }
+        Returns: Json
+      }
+      has_active_pass: { Args: { _uid: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      reset_my_devices: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +326,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
