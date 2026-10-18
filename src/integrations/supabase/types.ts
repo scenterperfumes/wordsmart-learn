@@ -14,39 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       payment_requests: {
         Row: {
           amount_bdt: number
+          base_months: number
+          bonus_months: number
           created_at: string
           email: string | null
           id: string
           plan_months: number
           sender_phone: string
           status: string
+          total_months: number
           trx_id: string
           user_id: string
           wallet: string
         }
         Insert: {
           amount_bdt: number
+          base_months?: number
+          bonus_months?: number
           created_at?: string
           email?: string | null
           id?: string
           plan_months: number
           sender_phone: string
           status?: string
+          total_months?: number
           trx_id: string
           user_id: string
           wallet: string
         }
         Update: {
           amount_bdt?: number
+          base_months?: number
+          bonus_months?: number
           created_at?: string
           email?: string | null
           id?: string
           plan_months?: number
           sender_phone?: string
           status?: string
+          total_months?: number
           trx_id?: string
           user_id?: string
           wallet?: string
@@ -64,53 +88,106 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          custom_daily_target: number | null
           daily_log: Json
           device_1_id: string | null
           device_1_name: string | null
           device_2_id: string | null
           device_2_name: string | null
+          earned_bonus_month: boolean
           email: string | null
           id: string
           last_device_reset_at: string | null
           last_master_id: number
+          mastered_words: Json
+          preferences: Json
+          study_seconds: number
           subscription_expires_at: string | null
           subscription_status: string
           target_exam_date: string
+          trial_quiz_score: number | null
           word_history: Json
         }
         Insert: {
           created_at?: string
+          custom_daily_target?: number | null
           daily_log?: Json
           device_1_id?: string | null
           device_1_name?: string | null
           device_2_id?: string | null
           device_2_name?: string | null
+          earned_bonus_month?: boolean
           email?: string | null
           id: string
           last_device_reset_at?: string | null
           last_master_id?: number
+          mastered_words?: Json
+          preferences?: Json
+          study_seconds?: number
           subscription_expires_at?: string | null
           subscription_status?: string
           target_exam_date?: string
+          trial_quiz_score?: number | null
           word_history?: Json
         }
         Update: {
           created_at?: string
+          custom_daily_target?: number | null
           daily_log?: Json
           device_1_id?: string | null
           device_1_name?: string | null
           device_2_id?: string | null
           device_2_name?: string | null
+          earned_bonus_month?: boolean
           email?: string | null
           id?: string
           last_device_reset_at?: string | null
           last_master_id?: number
+          mastered_words?: Json
+          preferences?: Json
+          study_seconds?: number
           subscription_expires_at?: string | null
           subscription_status?: string
           target_exam_date?: string
+          trial_quiz_score?: number | null
           word_history?: Json
         }
         Relationships: []
+      }
+      quiz_sessions: {
+        Row: {
+          completed: boolean
+          deadline: string
+          id: string
+          trial: boolean
+          user_id: string
+          word_ids: number[]
+        }
+        Insert: {
+          completed?: boolean
+          deadline: string
+          id?: string
+          trial: boolean
+          user_id: string
+          word_ids: number[]
+        }
+        Update: {
+          completed?: boolean
+          deadline?: string
+          id?: string
+          trial?: boolean
+          user_id?: string
+          word_ids?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -180,12 +257,22 @@ export type Database = {
         Args: { _approve: boolean; _id: string }
         Returns: undefined
       }
+      admin_set_access: {
+        Args: { _active: boolean; _user: string }
+        Returns: undefined
+      }
+      admin_set_wallet: { Args: { _number: string }; Returns: undefined }
       admin_upsert_words: {
         Args: { _mark_free: boolean; _words: Json }
         Returns: number
       }
       claim_device: {
         Args: { _device_id: string; _device_name: string }
+        Returns: Json
+      }
+      ensure_owner_access: { Args: never; Returns: undefined }
+      finish_timed_quiz: {
+        Args: { _answers: Json; _progress: Json; _session: string }
         Returns: Json
       }
       has_active_pass: { Args: { _uid: string }; Returns: boolean }
@@ -197,6 +284,10 @@ export type Database = {
         Returns: boolean
       }
       reset_my_devices: { Args: never; Returns: boolean }
+      start_timed_quiz: {
+        Args: { _ids: number[]; _trial: boolean }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user"
