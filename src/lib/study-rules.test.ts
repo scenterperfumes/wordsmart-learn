@@ -1,0 +1,10 @@
+import { expect, it } from 'vitest';
+import { OPEN_CARDS, WORD_BATCH, SYNC_INTERVAL, TRIAL_SECONDS, bonusForScore, packageMonths, isMastered, ActionLimiter } from './study-rules';
+it('free deck opens exactly ten cards',()=>expect(OPEN_CARDS).toBe(10));
+it('word requests contain fifty rows',()=>expect(WORD_BATCH).toBe(50));
+it('background sync waits two minutes',()=>expect(SYNC_INTERVAL).toBe(120000));
+it('trial timer is five minutes',()=>expect(TRIAL_SECONDS).toBe(300));
+it('15 of 20 earns bonus, 14 does not',()=>{expect(bonusForScore(15)).toBe(1);expect(bonusForScore(14)).toBe(0);});
+it('bonus adds one month to each launch package',()=>expect([1,2,3].map(n=>packageMonths(n,true))).toEqual([2,3,4]));
+it('deck review alone does not confer mastery',()=>{expect(isMastered('ABASH',{})).toBe(false);expect(isMastered('ABASH',{ABASH:'2026-10-18'})).toBe(true);});
+it('20 actions in five seconds cause ten-second cooldown',()=>{const l=new ActionLimiter();for(let n=0;n<19;n++)expect(l.record(n*100)).toBe(true);expect(l.record(1900)).toBe(false);expect(l.record(11899)).toBe(false);expect(l.record(11900)).toBe(true);});
