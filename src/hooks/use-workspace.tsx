@@ -1,135 +1,33 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
-import { FREE_HAND_SIZE, shuffle, todayKey, type History, type Word, type WordStatus } from "@/lib/words";
-import { toast } from "sonner";
-
-type Profile = Tables<"profiles">;
-
-type Ctx = {
-  userId: string;
-  profile: Profile;
-  words: Word[];
-  history: History;
-  dailyLog: Record<string, number>;
-  isPaid: boolean;
-  isAdmin: boolean;
-  trialHand: Word[];
-  pendingPayment: boolean;
-  mark: (word: string, status: WordStatus) => void;
-  saveLastCard: (masterId: number) => void;
-  setExamDate: (d: string) => void;
-  paywallOpen: boolean;
-  openPaywall: () => void;
-  closePaywall: () => void;
-  refreshPayments: () => void;
-};
-
-const WsContext = createContext<Ctx | null>(null);
-
-export function useWs() {
-  const c = useContext(WsContext);
-  if (!c) throw new Error("useWs outside provider");
-  return c;
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, Json } from '@/integrations/supabase/types';
+import { shuffle, todayKey, type History, type Word, type WordStatus } from '@/lib/words';
+import { SYNC_INTERVAL } from '@/lib/study-rules';
+import { requestAllowed } from '@/lib/request-guard';
+import { toast } from 'sonner';
+type Profile=Tables<'profiles'>;
+type Ctx={userId:string;profile:Profile;words:Word[];totalWords:number;history:History;mastered:Record<string,string>;dailyLog:Record<string,number>;isPaid:boolean;isAdmin:boolean;trialHand:Word[];pendingPayment:boolean;mark:(word:string,status:WordStatus)=>void;saveLastCard:(id:number)=>void;setExamDate:(d:string)=>void;setTarget:(n:number|null)=>void;addTime:()=>void;sync:()=>Promise<void>;dirty:boolean;quizActive:boolean;setQuizActive:(v:boolean)=>void;progress:()=>Json;applyQuiz:(data:{mastered:Record<string,string>;history:History;score:number;bonus:boolean},trial:boolean)=>void;restore:(data:unknown)=>void;paywallOpen:boolean;openPaywall:()=>void;closePaywall:()=>void;refreshPayments:()=>void};
+const WsContext=createContext<Ctx|null>(null);
+export function useWs(){const c=useContext(WsContext);if(!c)throw new Error('useWs outside provider');return c;}
+export function WorkspaceProvider({userId,children}:{userId:string;children:ReactNode}){
+ const qc=useQueryClient();const [paywallOpen,setPaywallOpen]=useState(false);const [local,setLocal]=useState<Profile|null>(null);const [dirty,setDirty]=useState(false);const [quizActive,setQuizActive]=useState(false);const ref=useRef<Profile|null>(null);const dirtyRef=useRef(false);const revision=useRef(0);const busy=useRef(false);const actions=useRef(0);
+ const profileQ=useQuery({queryKey:['profile',userId],staleTime:Infinity,queryFn:async()=>{const {data,error}=await supabase.from('profiles').select('*').eq('id',userId).single();if(error)throw error;return data;}});
+ const adminQ=useQuery({queryKey:['isAdmin',userId],staleTime:Infinity,queryFn:async()=>{const {data,error}=await supabase.rpc('has_role',{_user_id:userId,_role:'admin'});if(error)throw error;return !!data;}});
+ const payQ=useQuery({queryKey:['pendingPayment',userId],staleTime:Infinity,queryFn:async()=>{const {data}=await supabase.from('payment_requests').select('id').eq('user_id',userId).eq('status','pending').limit(1);return !!data?.length;}});
+ const paid=!!adminQ.data || !!profileQ.data && profileQ.data.subscription_status==='active' && !!profileQ.data.subscription_expires_at && new Date(profileQ.data.subscription_expires_at)>new Date();
+ const wordsQ=useQuery({queryKey:['words',userId,paid],enabled:!!profileQ.data&&adminQ.isSuccess,staleTime:Infinity,queryFn:async()=>{let result:Word[]=[];let total=0;for(let offset=0;;offset+=50){const {data,error,count}=await supabase.from('words_vault').select('*',{count:offset===0?'exact':undefined}).order('master_id').range(offset,offset+49);if(error)throw error;if(offset===0)total=count??0;result=result.concat(data);if(data.length<50)break;}return {words:result,total};}});
+ useEffect(()=>{if(!profileQ.data)return;const server=profileQ.data;let next=server;try{const cached=JSON.parse(localStorage.getItem(`lws_buffer_${userId}`)??'null');if(cached?.dirty&&cached?.data){next={...server,...cached.data,mastered_words:server.mastered_words,earned_bonus_month:server.earned_bonus_month};dirtyRef.current=true;setDirty(true);}}catch{} ref.current=next;setLocal(next);},[profileQ.data,userId]);
+ const fields=(p:Profile)=>({word_history:p.word_history,daily_log:p.daily_log,last_master_id:p.last_master_id,target_exam_date:p.target_exam_date,custom_daily_target:p.custom_daily_target,study_seconds:p.study_seconds,preferences:p.preferences});
+ const persist=useCallback((p:Profile,d:boolean)=>{try{localStorage.setItem(`lws_buffer_${userId}`,JSON.stringify({data:fields(p),dirty:d}));}catch{}},[userId]);
+ const patch=useCallback((v:Partial<Profile>)=>{if(!ref.current)return;const p={...ref.current,...v};ref.current=p;revision.current++;dirtyRef.current=true;setLocal(p);setDirty(true);persist(p,true);},[persist]);
+ const sync=useCallback(async()=>{if(!dirtyRef.current||!ref.current||busy.current||quizActive||!requestAllowed())return;busy.current=true;const p=ref.current;const r=revision.current;const {error}=await supabase.from('profiles').update(fields(p)).eq('id',userId);busy.current=false;if(error){toast.error("Progress is saved on this device. Sync will retry.");return;}if(r===revision.current){dirtyRef.current=false;setDirty(false);persist(p,false);}},[userId,persist,quizActive]);
+ useEffect(()=>{const t=setInterval(()=>void sync(),SYNC_INTERVAL);return()=>clearInterval(t);},[sync]);
+ const mark=useCallback((word:string,status:WordStatus)=>{const p=ref.current;if(!p)return;const key=todayKey();const log=p.daily_log as Record<string,number>;const history=p.word_history as History;patch({word_history:{...history,[word]:{status,updatedDate:key}},daily_log:{...log,[key]:(log[key]??0)+1}});actions.current++;if(actions.current%20===0)void sync();},[patch,sync]);
+ const words=wordsQ.data?.words??[];const trialHand=useMemo(()=>shuffle(words.filter(w=>w.is_free_trial),parseInt(userId.replaceAll('-','').slice(0,7),16)).slice(0,20),[words,userId]);
+ if(profileQ.isError||wordsQ.isError||adminQ.isError)return <FullMessage text="Couldn't load your deck. Please refresh."/>;
+ if(!local||!wordsQ.data)return <FullMessage text="Shuffling your deck…"/>;
+ const value:Ctx={userId,profile:local,words,totalWords:paid?wordsQ.data.total:595,history:local.word_history as History,mastered:local.mastered_words as Record<string,string>,dailyLog:local.daily_log as Record<string,number>,isPaid:paid,isAdmin:!!adminQ.data,trialHand,pendingPayment:!!payQ.data,mark,dirty,sync,quizActive,setQuizActive,saveLastCard:id=>{if(ref.current?.last_master_id!==id)patch({last_master_id:id});},setExamDate:d=>patch({target_exam_date:d}),setTarget:n=>patch({custom_daily_target:n}),addTime:()=>{if(ref.current)patch({study_seconds:ref.current.study_seconds+1});},progress:()=>ref.current?fields(ref.current):{},applyQuiz:(d,trial)=>{if(!ref.current)return;const p={...ref.current,mastered_words:d.mastered,word_history:d.history,...(trial?{trial_quiz_score:d.score,earned_bonus_month:d.bonus}:{})};ref.current=p;setLocal(p);dirtyRef.current=false;setDirty(false);persist(p,false);qc.setQueryData(['profile',userId],p);},restore:data=>{if(!data||typeof data!=='object')throw new Error('Invalid backup');const d=data as Record<string,unknown>;if(d.word_history&&typeof d.word_history==='object'&&!Array.isArray(d.word_history)&&d.daily_log&&typeof d.daily_log==='object')patch({word_history:d.word_history as Json,daily_log:d.daily_log as Json});else throw new Error('Invalid backup');},paywallOpen,openPaywall:()=>{if(!adminQ.data)setPaywallOpen(true);},closePaywall:()=>setPaywallOpen(false),refreshPayments:()=>void qc.invalidateQueries({queryKey:['pendingPayment',userId]})};
+ return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
-
-export function WorkspaceProvider({ userId, children }: { userId: string; children: ReactNode }) {
-  const qc = useQueryClient();
-  const [paywallOpen, setPaywallOpen] = useState(false);
-
-  const profileQ = useQuery({
-    queryKey: ["profile", userId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
-      if (error) throw error;
-      return data;
-    },
-  });
-  const wordsQ = useQuery({
-    queryKey: ["words", userId, profileQ.data?.subscription_status, profileQ.data?.subscription_expires_at],
-    enabled: !!profileQ.data,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("words_vault").select("*").order("master_id").limit(5000);
-      if (error) throw error;
-      return data as Word[];
-    },
-  });
-  const adminQ = useQuery({
-    queryKey: ["isAdmin", userId],
-    queryFn: async () => {
-      const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-      return !!data;
-    },
-  });
-  const payQ = useQuery({
-    queryKey: ["pendingPayment", userId],
-    queryFn: async () => {
-      const { data } = await supabase.from("payment_requests").select("id").eq("user_id", userId).eq("status", "pending").limit(1);
-      return (data?.length ?? 0) > 0;
-    },
-  });
-
-  const profile = profileQ.data;
-  const words = wordsQ.data ?? [];
-  const isPaid = !!profile && profile.subscription_status === "active" && !!profile.subscription_expires_at && new Date(profile.subscription_expires_at) > new Date();
-
-  const trialHand = useMemo(() => {
-    const free = words.filter((w) => w.is_free_trial);
-    const seed = parseInt(userId.replace(/-/g, "").slice(0, 7), 16);
-    return shuffle(free, seed).slice(0, FREE_HAND_SIZE);
-  }, [words, userId]);
-
-  const patchProfile = useCallback(
-    async (patch: Partial<Pick<Profile, "word_history" | "daily_log" | "last_master_id" | "target_exam_date">>) => {
-      qc.setQueryData<Profile>(["profile", userId], (old) => (old ? { ...old, ...patch } : old));
-      const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-      if (error) toast.error("Couldn't sync progress. Check your connection.");
-    },
-    [qc, userId],
-  );
-
-  const mark = useCallback(
-    (word: string, status: WordStatus) => {
-      const p = qc.getQueryData<Profile>(["profile", userId]);
-      if (!p) return;
-      const today = todayKey();
-      const history = { ...((p.word_history as History) ?? {}), [word]: { status, updatedDate: today } };
-      const log = { ...((p.daily_log as Record<string, number>) ?? {}) };
-      log[today] = (log[today] ?? 0) + 1;
-      patchProfile({ word_history: history, daily_log: log });
-    },
-    [qc, userId, patchProfile],
-  );
-
-  if (profileQ.isError) return <FullMessage text="Couldn't load your profile. Please refresh." />;
-  if (!profile || wordsQ.isLoading) return <FullMessage text="Shuffling your deck…" />;
-
-  const value: Ctx = {
-    userId,
-    profile,
-    words,
-    history: (profile.word_history as History) ?? {},
-    dailyLog: (profile.daily_log as Record<string, number>) ?? {},
-    isPaid,
-    isAdmin: !!adminQ.data,
-    trialHand,
-    pendingPayment: !!payQ.data,
-    mark,
-    saveLastCard: (id) => {
-      if (id !== profile.last_master_id) patchProfile({ last_master_id: id });
-    },
-    setExamDate: (d) => patchProfile({ target_exam_date: d }),
-    paywallOpen,
-    openPaywall: () => setPaywallOpen(true),
-    closePaywall: () => setPaywallOpen(false),
-    refreshPayments: () => qc.invalidateQueries({ queryKey: ["pendingPayment", userId] }),
-  };
-  return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
-}
-
-export function FullMessage({ text }: { text: string }) {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">{text}</div>
-  );
-}
+export function FullMessage({text}:{text:string}){return <div className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">{text}</div>;}
