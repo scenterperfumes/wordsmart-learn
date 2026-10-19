@@ -1,173 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useWs } from "@/hooks/use-workspace";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-
-export const Route = createFileRoute("/_authenticated/_ws/admin")({
-  head: () => ({
-    meta: [
-      { title: "Admin · Learn Word Smart" },
-      { name: "description", content: "Approve payments, manage users and upload words." },
-      { property: "og:title", content: "Admin · Learn Word Smart" },
-      { property: "og:description", content: "Learn Word Smart admin control panel." },
-    ],
-  }),
-  component: AdminPage,
-});
-
-function AdminPage() {
-  const { isAdmin } = useWs();
-  if (!isAdmin) return <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">Admins only.</div>;
-  return (
-    <Tabs defaultValue="pay">
-      <TabsList className="w-full">
-        <TabsTrigger value="pay" className="flex-1">Payments</TabsTrigger>
-        <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
-        <TabsTrigger value="db" className="flex-1">Words</TabsTrigger>
-      </TabsList>
-      <TabsContent value="pay"><Payments /></TabsContent>
-      <TabsContent value="users"><Users /></TabsContent>
-      <TabsContent value="db"><Uploader /></TabsContent>
-    </Tabs>
-  );
-}
-
-function Payments() {
-  const qc = useQueryClient();
-  const q = useQuery({
-    queryKey: ["admin-payments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("payment_requests").select("*").eq("status", "pending").order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
-  const act = async (id: string, approve: boolean) => {
-    const { error } = await supabase.rpc("admin_review_payment", { _id: id, _approve: approve });
-    if (error) { toast.error(error.message); return; }
-    toast.success(approve ? "Approved — pass activated" : "Rejected");
-    qc.invalidateQueries({ queryKey: ["admin-payments"] });
-  };
-  if (q.isLoading) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>;
-  if (!q.data?.length) return <p className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">No pending payments.</p>;
-  return (
-    <div className="flex flex-col gap-2">
-      {q.data.map((p) => (
-        <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 text-sm">
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-semibold">{p.email}</div>
-            <div className="font-mono text-xs text-muted-foreground">
-              {p.plan_months}M · {p.amount_bdt}৳ · {p.wallet} · {p.sender_phone} · {p.trx_id}
-            </div>
-            <div className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleString()}</div>
-          </div>
-          <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => act(p.id, true)}>Approve</Button>
-          <Button size="sm" variant="secondary" onClick={() => act(p.id, false)}>Reject</Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Users() {
-  const [email, setEmail] = useState("");
-  const [rows, setRows] = useState<{ id: string; email: string | null; subscription_status: string; subscription_expires_at: string | null; device_1_name: string | null; device_2_name: string | null }[]>([]);
-  const search = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,email,subscription_status,subscription_expires_at,device_1_name,device_2_name")
-      .ilike("email", `%${email.trim()}%`)
-      .limit(20);
-    if (error) { toast.error(error.message); return; }
-    setRows(data);
-  };
-  const extend = async (id: string, months: number) => {
-    const { error } = await supabase.rpc("admin_extend", { _user: id, _months: months });
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Extended by ${months} month(s)`);
-    search();
-  };
-  const clear = async (id: string) => {
-    const { error } = await supabase.rpc("admin_clear_devices", { _user: id });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Devices cleared");
-    search();
-  };
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <Input placeholder="Search by email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
-        <Button onClick={search}>Search</Button>
-      </div>
-      {rows.map((u) => (
-        <div key={u.id} className="rounded-xl border bg-card p-3 text-sm">
-          <div className="font-semibold">{u.email}</div>
-          <div className="font-mono text-xs text-muted-foreground">
-            {u.subscription_status.toUpperCase()} {u.subscription_expires_at && `· until ${new Date(u.subscription_expires_at).toLocaleDateString()}`}
-          </div>
-          <div className="text-xs text-muted-foreground">Devices: {[u.device_1_name, u.device_2_name].filter(Boolean).join(", ") || "none"}</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {[1, 2, 3].map((m) => (
-              <Button key={m} size="sm" variant="secondary" onClick={() => extend(u.id, m)}>+{m}M</Button>
-            ))}
-            <Button size="sm" variant="outline" onClick={() => clear(u.id)}>Clear devices</Button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function parseWords(text: string): Record<string, string>[] {
-  const t = text.trim();
-  if (t.startsWith("[") || /wordsData\s*=/.test(t)) {
-    const arr = t.replace(/^[\s\S]*?=\s*/, "").replace(/;\s*$/, "");
-    // Admin-pasted JS object literal from words.js
-    return new Function(`return (${arr.startsWith("[") ? arr : t})`)();
-  }
-  const [head, ...lines] = t.split(/\r?\n/).filter(Boolean);
-  const cols = head!.split(",").map((c) => c.trim());
-  return lines.map((l) => {
-    const cells = l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)?.map((c) => c.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim()) ?? [];
-    return Object.fromEntries(cols.map((c, i) => [c, cells[i] ?? ""]));
-  });
-}
-
-function Uploader() {
-  const [text, setText] = useState("");
-  const [markFree, setMarkFree] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const upload = async () => {
-    let words: Record<string, string>[];
-    try {
-      words = parseWords(text).filter((w) => w["word"]);
-    } catch {
-      { toast.error("Couldn't read that. Paste a JSON array, the wordsData block, or CSV."); return; }
-    }
-    if (!words.length) { toast.error("No words found."); return; }
-    setBusy(true);
-    const { data, error } = await supabase.rpc("admin_upsert_words", { _words: words, _mark_free: markFree });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${data} words saved`);
-  };
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
-      <p className="text-sm text-muted-foreground">
-        Paste the <code className="font-mono">wordsData</code> array (JSON or words.js), or CSV with headers word,pos,meaningBn,meaningEn,syn,ant,sentence. Words are numbered in paste order.
-      </p>
-      <Textarea rows={12} className="font-mono text-xs" value={text} onChange={(e) => setText(e.target.value)} placeholder='[{ "word": "ABASH", ... }]' />
-      <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={markFree} onCheckedChange={(v) => setMarkFree(!!v)} /> Mark the first 20 words as free trial
-      </label>
-      <Button onClick={upload} disabled={busy}>{busy ? "Uploading…" : "Bulk upsert words"}</Button>
-    </div>
-  );
-}
+import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useQuery,useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useWs } from '@/hooks/use-workspace';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs,TabsContent,TabsList,TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import JSON5 from 'json5';
+import { ADMIN_NUMBER,WALLETS,PLANS } from '@/lib/words';
+import { pageMeta } from '@/lib/metadata';
+import type { Json } from '@/integrations/supabase/types';
+export const Route=createFileRoute('/_authenticated/_ws/admin')({head:()=>({meta:pageMeta('Admin','Users, payment approvals, vocabulary management and sales analytics.')}),component:AdminPage});
+function AdminPage(){const {isAdmin}=useWs();if(!isAdmin)return <p className="py-20 text-center text-muted-foreground">Admins only.</p>;return <div><div className="study-title"><div><h1>Admin Table ⚙</h1><p>Your users, words, and winning hands.</p></div></div><Tabs defaultValue="users"><TabsList className="w-full overflow-x-auto justify-start"><TabsTrigger value="users">Users</TabsTrigger><TabsTrigger value="pay">Payment Approvals</TabsTrigger><TabsTrigger value="words">Word Manager</TabsTrigger><TabsTrigger value="sales">Analytics & Sales</TabsTrigger></TabsList><TabsContent value="users"><Users/></TabsContent><TabsContent value="pay"><Payments/></TabsContent><TabsContent value="words"><Words/></TabsContent><TabsContent value="sales"><Sales/></TabsContent></Tabs></div>;}
+function useUsers(){return useQuery({queryKey:['admin-users'],staleTime:Infinity,queryFn:async()=>{const {data,error}=await supabase.from('profiles').select('*').order('created_at');if(error)throw error;return data;}});}
+function usePayments(){return useQuery({queryKey:['admin-payments'],staleTime:Infinity,queryFn:async()=>{const {data,error}=await supabase.from('payment_requests').select('*').order('created_at',{ascending:false});if(error)throw error;return data;}});}
+function Users(){const q=useUsers();const qc=useQueryClient();const [search,setSearch]=useState('');const [busy,setBusy]=useState(false);const act=async(id:string,kind:string,active=false)=>{setBusy(true);const {error}=kind==='reset'?await supabase.rpc('admin_clear_devices',{_user:id}):kind==='extend'?await supabase.rpc('admin_extend',{_user:id,_months:1}):await supabase.rpc('admin_set_access',{_user:id,_active:active});setBusy(false);if(error){toast.error(error.message);return;}toast.success('Account updated');void qc.invalidateQueries({queryKey:['admin-users']});};return <div><Input aria-label="Search users" placeholder="Search by email…" value={search} onChange={e=>setSearch(e.target.value)}/><div className="overflow-x-auto mt-4"><table className="admin-table"><thead><tr>{['Email','Status / Expiry','Trial Score','Mastered','Study Time','Devices','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{q.data?.filter(u=>u.email?.toLowerCase().includes(search.toLowerCase())).map(u=><tr key={u.id}><td>{u.email}</td><td>{u.subscription_status}<br/>{u.subscription_expires_at?.slice(0,10)??'No pass'}</td><td>{u.trial_quiz_score===null?'—':`${u.trial_quiz_score}/20`}{u.earned_bonus_month&&<span className="block text-success">75% Bonus +1M</span>}</td><td>{Object.keys(u.mastered_words??{}).length}</td><td>{Math.floor(u.study_seconds/60)} min</td><td>{u.device_1_name??'Empty'}<br/>{u.device_2_name??'Empty'}</td><td><div className="flex gap-1"><Button disabled={busy} size="sm" variant="outline" onClick={()=>act(u.id,'reset')}>Reset Devices</Button><Button disabled={busy} size="sm" variant="outline" onClick={()=>act(u.id,'extend')}>+1 Month</Button><Button disabled={busy} size="sm" variant="outline" onClick={()=>act(u.id,'access',u.subscription_status!=='active')}>{u.subscription_status==='active'?'Revoke':'Activate'}</Button></div></td></tr>)}</tbody></table>{q.isPending&&<p className="p-5 text-xs">Loading accounts…</p>}</div></div>;}
+function Payments(){const q=usePayments();const qc=useQueryClient();const [number,setNumber]=useState('');const [busy,setBusy]=useState(false);const [filter,setFilter]=useState('pending');const settings=useQuery({queryKey:['wallet-number'],staleTime:Infinity,queryFn:async()=>{const {data}=await supabase.from('app_settings').select('value').eq('key','wallet_number').maybeSingle();return data?.value??ADMIN_NUMBER;}});const act=async(id:string,approve:boolean)=>{setBusy(true);const {error}=await supabase.rpc('admin_review_payment',{_id:id,_approve:approve});setBusy(false);if(error){toast.error(error.message);return;}toast.success(approve?'Approved — total months activated':'Rejected');void qc.invalidateQueries({queryKey:['admin-payments']});void qc.invalidateQueries({queryKey:['admin-users']});};return <div><div className="flex flex-wrap gap-2 items-center py-3"><span className="text-xs">Unified wallet number</span><Input aria-label="Wallet number" className="w-44" value={number||settings.data||ADMIN_NUMBER} maxLength={11} onChange={e=>setNumber(e.target.value.replace(/\D/g,''))}/><Button size="sm" onClick={async()=>{const {error}=await supabase.rpc('admin_set_wallet',{_number:number||settings.data||ADMIN_NUMBER});if(error){toast.error(error.message);return;}toast.success('Wallet number updated');void qc.invalidateQueries({queryKey:['wallet-number']});}}>Save</Button></div><div className="flex gap-2 my-3">{['pending','approved','rejected','all'].map(s=><Button key={s} size="sm" variant={filter===s?'default':'outline'} onClick={()=>setFilter(s)}>{s}</Button>)}</div><div className="overflow-x-auto"><table className="admin-table"><thead><tr>{['Email','Package','Bonus','Total','Wallet','Sender','TrxID','Date','Status / Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{q.data?.filter(p=>filter==='all'||p.status===filter).map(p=><tr key={p.id}><td>{p.email}</td><td>{p.amount_bdt}৳ · {p.base_months}M</td><td>{p.bonus_months?'+1M':'0'}</td><td>{p.total_months} months</td><td>{p.wallet}</td><td>{p.sender_phone}</td><td>{p.trx_id}</td><td>{p.created_at.slice(0,10)}</td><td>{p.status==='pending'?<div className="flex gap-1"><Button disabled={busy} size="sm" onClick={()=>act(p.id,true)}>✓ Approve</Button><Button disabled={busy} size="sm" variant="outline" onClick={()=>act(p.id,false)}>✕ Reject</Button></div>:p.status}</td></tr>)}</tbody></table>{q.data?.length===0&&<p className="py-10 text-sm text-muted-foreground">No payment requests yet.</p>}</div></div>;}
+function Words(){const [text,setText]=useState('');const [markFree,setMarkFree]=useState(true);const [busy,setBusy]=useState(false);const [progress,setProgress]=useState('');const [form,setForm]=useState<Record<string,string>>({master_id:'',word:'',pos:'',meaning_bn:'',meaning_en:'',syn:'',ant:'',sentence:''});const qc=useQueryClient();const upload=async(single=false)=>{let rows:Record<string,unknown>[];try{if(single){if(!form.word||!Number(form.master_id))throw new Error();rows=[{...form,master_id:Number(form.master_id)}];}else{const match=text.match(/\[[\s\S]*\]/);const parsed=JSON5.parse(match?.[0]??text);if(!Array.isArray(parsed))throw new Error();rows=parsed.map((w,i)=>({...w,master_id:Number(w.master_id??i+1)}));if(rows.some(w=>!w.word||!w.master_id))throw new Error();}}catch{toast.error('Paste a valid JSON or wordsData array with word entries.');return;}setBusy(true);try{for(let i=0;i<rows.length;i+=100){const {error}=await supabase.rpc('admin_upsert_words',{_words:rows.slice(i,i+100) as Json,_mark_free:markFree});if(error)throw error;setProgress(`${Math.min(i+100,rows.length)} / ${rows.length} words saved`);}toast.success(`${rows.length} words saved`);void qc.invalidateQueries({queryKey:['words']});}catch{toast.error('Import stopped. Saved batches are safe; retry the remaining rows.');}setBusy(false);};return <div className="space-y-5 py-4"><h2 className="font-display text-lg">Single Word · Add / Edit</h2><div className="grid sm:grid-cols-2 gap-2">{Object.keys(form).map(k=><Input key={k} aria-label={k} placeholder={k.replaceAll('_',' ')} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}</div><Button disabled={busy} onClick={()=>upload(true)}>Save Word</Button><div className="border-t pt-5"><h2 className="font-display text-lg mb-3">Bulk JSON / JS Import</h2><Textarea aria-label="Words array" rows={10} className="font-mono text-xs" placeholder='const wordsData = [{ word: "ABASH", meaningBn: "..." }];' value={text} onChange={e=>setText(e.target.value)}/><label className="flex items-center gap-2 text-xs mt-3"><Checkbox checked={markFree} onCheckedChange={v=>setMarkFree(!!v)}/> First 20 words available for trial assessment</label><div className="flex gap-3 items-center mt-3"><Button disabled={busy} onClick={()=>upload()}>{busy?'Importing…':'Import in 100-word batches'}</Button><span className="text-xs text-muted-foreground">{progress}</span></div></div></div>;}
+function Sales(){const uq=useUsers();const pq=usePayments();const users=uq.data??[];const approved=(pq.data??[]).filter(p=>p.status==='approved');const month=new Date().toISOString().slice(0,7);const revenue=approved.reduce((n,p)=>n+p.amount_bdt,0);const months=Array.from(new Set(approved.map(p=>p.created_at.slice(0,7)))).sort().reverse();return <div className="py-4"><div className="grid grid-cols-2 xl:grid-cols-5 gap-3">{[['Total Revenue',`${revenue} BDT`],['This Month',`${approved.filter(p=>p.created_at.startsWith(month)).reduce((n,p)=>n+p.amount_bdt,0)} BDT`],['Active Paid Users',users.filter(u=>u.subscription_status==='active'&&new Date(u.subscription_expires_at??0)>new Date()&&u.subscription_expires_at?.slice(0,4)!=='9999').length],['Total Users',users.length],['75% Bonus Qualifiers',users.filter(u=>u.earned_bonus_month).length]].map(([l,v])=><div className="metric-item" key={l}><p className="metric-label">{l}</p><div className="metric-number">{v}</div></div>)}</div><h2 className="font-display text-lg mt-7 mb-4">Payment Medium Breakdown</h2>{WALLETS.map(w=>{const rows=approved.filter(p=>p.wallet===w);const amount=rows.reduce((n,p)=>n+p.amount_bdt,0);return <div key={w} className="flex items-center gap-3 py-2 text-xs"><b className="w-16">{w}</b><progress className="flex-1 accent-primary h-2" value={amount} max={Math.max(1,revenue)}/><span>{amount} BDT · {rows.length} payments</span></div>;})}<h2 className="font-display text-lg mt-7 mb-4">Package Breakdown</h2>{PLANS.map(p=><div key={p.months} className="flex justify-between border-b py-3 text-xs"><span>{p.bdt}৳ · {p.label}</span><span>{approved.filter(a=>a.amount_bdt===p.bdt).length} sales · {approved.filter(a=>a.amount_bdt===p.bdt).reduce((n,a)=>n+a.amount_bdt,0)} BDT</span></div>)}<h2 className="font-display text-lg mt-7 mb-4">Monthly Sales History</h2>{months.length===0?<p className="text-xs text-muted-foreground">No approved sales yet.</p>:months.map(m=><div key={m} className="flex justify-between border-b py-3 text-xs"><span>{m}</span><span>{approved.filter(p=>p.created_at.startsWith(m)).reduce((n,p)=>n+p.amount_bdt,0)} BDT</span></div>)}</div>;}
