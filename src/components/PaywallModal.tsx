@@ -1,135 +1,17 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useWs } from "@/hooks/use-workspace";
-import { ADMIN_NUMBER, PLANS, WALLETS } from "@/lib/words";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { Clock, Copy } from "lucide-react";
-
-export function PaywallModal() {
-  const { paywallOpen, closePaywall, trialHand, history, profile, userId, pendingPayment, refreshPayments, isPaid } = useWs();
-  const [plan, setPlan] = useState<1 | 2 | 3>(3);
-  const [wallet, setWallet] = useState<(typeof WALLETS)[number]>("bKash");
-  const [phone, setPhone] = useState("");
-  const [trx, setTrx] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const known = trialHand.filter((w) => history[w.word]?.status === "learned").length;
-  const missed = trialHand.filter((w) => history[w.word]?.status === "weak");
-  const sel = PLANS.find((p) => p.months === plan)!;
-
-  const submit = async () => {
-    if (!/^01\d{9}$/.test(phone)) { toast.error("Enter an 11-digit phone number starting with 01."); return; }
-    if (trx.trim().length < 6) { toast.error("Enter a valid Transaction ID."); return; }
-    setBusy(true);
-    const { error } = await supabase.from("payment_requests").insert({
-      user_id: userId,
-      email: profile.email,
-      plan_months: plan,
-      amount_bdt: sel.bdt,
-      wallet,
-      sender_phone: phone,
-      trx_id: trx.trim().toUpperCase(),
-    });
-    setBusy(false);
-    if (error) { toast.error(error.code === "23505" ? "This Transaction ID was already submitted." : "Submission failed. Try again."); return; }
-    toast.success("Payment submitted. We'll verify it shortly.");
-    setPhone("");
-    setTrx("");
-    refreshPayments();
-  };
-
-  return (
-    <Dialog open={paywallOpen} onOpenChange={(o) => !o && closePaywall()}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isPaid ? "Extend your pass" : "Assessment report"}</DialogTitle>
-          <DialogDescription>
-            {isPaid ? "Add more months to your current pass." : "Unlock all words, letters A–Z and the full Quiz Arena."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!isPaid && (
-          <div className="rounded-xl bg-elevated p-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm text-muted-foreground">Diagnostic score</span>
-              <span className="font-mono text-2xl font-bold">
-                {known} <span className="text-muted-foreground">/ {trialHand.length} Known</span>
-              </span>
-            </div>
-            {missed.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {missed.map((w) => (
-                  <span key={w.word} className="rounded-md bg-destructive/15 px-2 py-0.5 text-xs font-semibold text-destructive">
-                    {w.word}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {pendingPayment && (
-          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-            <Clock className="h-4 w-4" /> Verification Pending — we're checking your payment.
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-2">
-          {PLANS.map((p) => (
-            <button
-              key={p.months}
-              onClick={() => setPlan(p.months)}
-              className={cn(
-                "relative rounded-xl border p-3 text-left transition-colors",
-                plan === p.months ? "border-primary bg-primary/10" : "hover:bg-elevated",
-              )}
-            >
-              {"best" in p && p.best && (
-                <span className="absolute -top-2 right-2 rounded bg-primary px-1.5 text-[9px] font-bold text-primary-foreground">BEST VALUE</span>
-              )}
-              <div className="text-xs text-muted-foreground">{p.label}</div>
-              <div className="font-mono text-lg font-bold">{p.bdt}৳</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="rounded-xl border p-4 text-sm">
-          <p>
-            Send Money <b className="font-mono">{sel.bdt} BDT</b> via bKash / Nagad / Rocket / Upay to:
-          </p>
-          <button
-            className="mt-2 flex items-center gap-2 font-mono text-lg font-bold text-primary"
-            onClick={() => {
-              navigator.clipboard?.writeText(ADMIN_NUMBER);
-              toast.success("Number copied");
-            }}
-          >
-            {ADMIN_NUMBER} <Copy className="h-4 w-4" />
-          </button>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {WALLETS.map((w) => (
-              <button
-                key={w}
-                onClick={() => setWallet(w)}
-                className={cn("rounded-md border px-2.5 py-1 text-xs font-semibold", wallet === w ? "border-primary bg-primary/10 text-primary" : "")}
-              >
-                {w}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 grid gap-2">
-            <Input inputMode="numeric" maxLength={11} placeholder="Sender Phone Number (01XXXXXXXXX)" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
-            <Input placeholder="Transaction ID (TrxID)" value={trx} onChange={(e) => setTrx(e.target.value)} />
-            <Button onClick={submit} disabled={busy}>
-              {busy ? "Submitting…" : `Submit ${sel.label} payment`}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
+import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useWs } from '@/hooks/use-workspace';
+import { ADMIN_NUMBER,PLANS,WALLETS } from '@/lib/words';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Copy } from 'lucide-react';
+export function PaywallModal(){const ws=useWs();const [plan,setPlan]=useState<1|2|3>(3);const [wallet,setWallet]=useState<typeof WALLETS[number]>('bKash');const [phone,setPhone]=useState('');const [trx,setTrx]=useState('');const [busy,setBusy]=useState(false);const sel=PLANS.find(p=>p.months===plan)??PLANS[2];const q=useQuery({queryKey:['wallet-number'],enabled:ws.paywallOpen,staleTime:Infinity,queryFn:async()=>{const {data}=await supabase.from('app_settings').select('value').eq('key','wallet_number').maybeSingle();return data?.value??ADMIN_NUMBER;}});const number=q.data??ADMIN_NUMBER;
+ const submit=async()=>{if(!/^01\d{9}$/.test(phone)){toast.error('Enter an 11-digit sender number starting with 01.');return;}if(trx.trim().length<6){toast.error('Enter a valid transaction ID.');return;}setBusy(true);const {error}=await supabase.from('payment_requests').insert({user_id:ws.userId,plan_months:plan,amount_bdt:sel.bdt,wallet,sender_phone:phone,trx_id:trx.trim().toUpperCase()});setBusy(false);if(error){toast.error(error.code==='23505'?'This transaction was already submitted.':'Payment could not submit. Please retry.');return;}toast.success('Verification Pending — your payment is submitted.');setPhone('');setTrx('');ws.refreshPayments();};
+ if(ws.isAdmin)return null;
+ return <Dialog open={ws.paywallOpen} onOpenChange={v=>!v&&ws.closePaywall()}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle className="font-display text-2xl">{ws.isPaid?'Extend your Pro pass':'Free Trial Assessment'}</DialogTitle><DialogDescription>{ws.isPaid?'Keep your winning hand going.':'20 words. 5 minutes. One extra month to win.'}</DialogDescription></DialogHeader>{!ws.isPaid&&<div className="trial-banner">🎁 Score 75% or higher (15/20) on the 5-Minute Quiz to get <b>+1 MONTH EXTRA FREE!</b><div className="mt-3 flex items-center gap-3"><Button asChild onClick={ws.closePaywall}><Link to="/quiz" search={{trial:true}}>Take the assessment →</Link></Button>{ws.profile.trial_quiz_score!==null&&<span className="font-mono text-xs">{ws.profile.trial_quiz_score}/20</span>}</div></div>}{ws.pendingPayment&&<p className="border border-warning rounded-md p-3 text-xs text-warning">◷ Verification Pending — we’re checking your payment.</p>}<div className="grid grid-cols-3 gap-2">{PLANS.map(p=><Button key={p.months} variant="outline" className={`flex-col h-auto min-h-24 px-2 py-3 ${plan===p.months?'border-primary bg-primary/10':''}`} onClick={()=>setPlan(p.months)}>{'best'in p&&<span className="text-[8px] text-primary">BEST VALUE</span>}<span className="text-xs">{p.label}</span><span className="font-mono text-xl">{p.bdt}৳</span>{ws.profile.earned_bonus_month&&<span className="text-[9px] text-success">{p.months} + 1 = {p.months+1} Months</span>}</Button>)}</div>{ws.profile.earned_bonus_month&&<p className="text-xs text-success">🎉 75% Scorer Bonus: {plan} + 1 = {plan+1} Months Total for {sel.bdt} BDT</p>}<div className="grid grid-cols-4 gap-2">{WALLETS.map(w=><Button key={w} variant="outline" className={`wallet-card wallet-${w} ${wallet===w?'border-primary bg-primary/10':''}`} onClick={()=>setWallet(w)}><WalletLogo wallet={w}/><span className="text-[10px]">{w}</span></Button>)}</div><div className="border-y py-4 text-center"><p className="text-xs text-muted-foreground">Send Money (Personal) · {sel.bdt} BDT</p><Button variant="ghost" className="font-mono text-xl text-primary mt-1" onClick={async()=>{try{await navigator.clipboard.writeText(number);toast.success('Number copied');}catch{toast.error('Copy unavailable. Please copy the number manually.');}}}>{number}<Copy size={16}/></Button><p className="text-[10px] text-muted-foreground mt-1">Send Money to this number via bKash, Nagad, Rocket, or Upay</p></div><Input aria-label="Sender Mobile Number" inputMode="numeric" maxLength={11} placeholder="Sender Mobile Number (11 digits)" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))}/><Input aria-label="Transaction ID" placeholder="Transaction ID (TrxID)" value={trx} onChange={e=>setTrx(e.target.value)}/><Button disabled={busy||ws.pendingPayment} onClick={submit}>{busy?'Submitting…':ws.pendingPayment?'Verification Pending':`Submit ${sel.bdt} BDT payment`}</Button></DialogContent></Dialog>;
 }
+function WalletLogo({wallet}:{wallet:string}){return <svg viewBox="0 0 40 32" aria-hidden>{wallet==='bKash'?<><path d="M3 6L22 11L15 23ZM22 11L36 2L27 19ZM15 23L27 19L20 30ZM3 6L10 2L22 11Z"/><path d="M27 19L37 15L33 24Z"/></>:wallet==='Nagad'?<><path d="M20 0C34 13 38 22 29 29C21 36 7 28 9 19C10 13 17 11 20 0ZM19 12C19 21 11 22 16 27C21 33 29 27 27 21Z"/><path d="M2 14Q13 4 22 9L18 12Q8 11 2 19Z"/></>:wallet==='Rocket'?<><path d="M16 25C11 13 22 3 34 1C36 14 28 24 16 25ZM8 12L17 11L13 23L4 22ZM18 27L29 19L30 29L20 32Z"/><circle cx="27" cy="10" r="3" fill="var(--card)"/><path d="M12 26L4 31L8 23Z"/></>:<><path d="M4 6H12V19Q12 26 20 26Q28 26 28 19V6H36V20Q36 33 20 33Q4 33 4 20Z"/><path d="M15 0H25V18H15Z" fill="var(--wallet-upay-secondary)"/></>}</svg>;}

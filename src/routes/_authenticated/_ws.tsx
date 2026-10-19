@@ -1,136 +1,28 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { BookOpen, Swords, Library, Shield, LogOut, Moon, Sun, X } from "lucide-react";
-import { WorkspaceProvider, useWs } from "@/hooks/use-workspace";
-import { DeviceGate } from "@/components/DeviceGate";
-import { PaywallModal } from "@/components/PaywallModal";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/_authenticated/_ws")({
-  component: WsLayout,
-});
-
-function WsLayout() {
-  const { user } = Route.useRouteContext();
-  return (
-    <DeviceGate>
-      <WorkspaceProvider userId={user.id}>
-        <Shell />
-      </WorkspaceProvider>
-    </DeviceGate>
-  );
-}
-
-const tabs = [
-  { to: "/study", label: "Study Deck", icon: BookOpen },
-  { to: "/quiz", label: "Quiz Arena", icon: Swords },
-  { to: "/vault", label: "Word Vault", icon: Library },
-] as const;
-
-function ThemeToggle() {
-  const [dark, setDark] = useState(true);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
-  return (
-    <button
-      aria-label="Toggle theme"
-      className="rounded-md p-2 text-muted-foreground hover:bg-elevated hover:text-foreground"
-      onClick={() => {
-        const next = !dark;
-        document.documentElement.classList.toggle("dark", next);
-        localStorage.setItem("lws_theme", next ? "dark" : "light");
-        setDark(next);
-      }}
-    >
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
-  );
-}
-
-function ExpiryBar() {
-  const { profile, isPaid, openPaywall } = useWs();
-  const [hidden, setHidden] = useState(false);
-  if (!isPaid || hidden || !profile.subscription_expires_at) return null;
-  const days = Math.ceil((new Date(profile.subscription_expires_at).getTime() - Date.now()) / 86400000);
-  if (days > 7) return null;
-  return (
-    <div className="flex items-center gap-3 border-b border-warning/30 bg-warning/10 px-4 py-2 text-sm text-warning">
-      <span className="flex-1">Your pass expires in {days} day{days === 1 ? "" : "s"}.</span>
-      <Button size="sm" variant="outline" className="h-7 border-warning/40" onClick={openPaywall}>
-        Extend Pass
-      </Button>
-      <button aria-label="Dismiss" onClick={() => setHidden(true)}>
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-function Shell() {
-  const { isAdmin, isPaid, profile } = useWs();
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  const all = isAdmin ? [...tabs, { to: "/admin", label: "Admin", icon: Shield } as const] : tabs;
-
-  return (
-    <div className="min-h-dvh bg-background lg:pl-[240px]">
-      <aside className="fixed inset-y-0 left-0 hidden w-[240px] flex-col border-r bg-sidebar p-4 lg:flex">
-        <Link to="/study" className="mb-8 flex items-center gap-2 px-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary font-display text-lg font-extrabold text-primary-foreground">W</span>
-          <span className="font-bold tracking-tight">Learn Word Smart</span>
-        </Link>
-        <nav className="flex flex-col gap-1">
-          {all.map((t) => (
-            <Link
-              key={t.to}
-              to={t.to}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-                path === t.to && "bg-sidebar-accent text-foreground",
-              )}
-            >
-              <t.icon className={cn("h-4 w-4", path === t.to && "text-primary")} />
-              {t.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto rounded-lg bg-elevated p-3 text-xs">
-          <div className="truncate text-muted-foreground">{profile.email}</div>
-          <div className={cn("mt-1 font-mono font-bold", isPaid ? "text-success" : "text-warning")}>
-            {isPaid ? `PASS · until ${new Date(profile.subscription_expires_at!).toLocaleDateString()}` : "FREE TRIAL"}
-          </div>
-        </div>
-      </aside>
-
-      <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b bg-background/85 px-4 backdrop-blur">
-        <span className="font-bold tracking-tight lg:hidden">Learn Word Smart</span>
-        <span className="hidden text-sm text-muted-foreground lg:block">{all.find((t) => t.to === path)?.label}</span>
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <button aria-label="Sign out" className="rounded-md p-2 text-muted-foreground hover:bg-elevated hover:text-foreground" onClick={() => supabase.auth.signOut()}>
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
-      <ExpiryBar />
-
-      <main className="mx-auto max-w-3xl px-3 pb-[76px] pt-3 lg:px-6 lg:pb-8 lg:pt-6">
-        <Outlet />
-      </main>
-
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[60px] border-t bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {all.map((t) => (
-          <Link
-            key={t.to}
-            to={t.to}
-            className={cn("flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground", path === t.to && "text-primary")}
-          >
-            <t.icon className="h-5 w-5" />
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      <PaywallModal />
-    </div>
-  );
+import { createFileRoute,Link,Outlet,useRouterState } from '@tanstack/react-router';
+import { useEffect,useRef,useState } from 'react';
+import { LogOut,Moon,Sun,Download,Upload,Minus,Plus } from 'lucide-react';
+import { WorkspaceProvider,useWs } from '@/hooks/use-workspace';
+import { DeviceGate } from '@/components/DeviceGate';
+import { PaywallModal } from '@/components/PaywallModal';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { AmbientCanvas } from '@/components/AmbientCanvas';
+import { JijiWidget,type JijiState } from '@/components/Jiji';
+import { todayKey } from '@/lib/words';
+import { toast } from 'sonner';
+export const Route=createFileRoute('/_authenticated/_ws')({component:WsLayout});
+function WsLayout(){const {user}=Route.useRouteContext();return <DeviceGate><WorkspaceProvider userId={user.id}><Shell/></WorkspaceProvider></DeviceGate>;}
+const tabs=[{to:'/study',label:'Word Deck',suit:'♠'},{to:'/vault',label:'Word Database',suit:'♦'},{to:'/history',label:'Learning History',suit:'♣'},{to:'/quiz',label:'Alphabet Quiz',suit:'♥'}] as const;
+function clock(n:number){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
+function Shell(){const ws=useWs();const path=useRouterState({select:s=>s.location.pathname});const previous=useRef(path);const [dark,setDark]=useState(true);const [scale,setScale]=useState(1);const [accent,setAccent]=useState('crimson');const [pomo,setPomo]=useState(1500);const [running,setRunning]=useState(false);const restore=useRef<HTMLInputElement>(null);const [jiji,setJiji]=useState<{state:JijiState;message:string}>({state:'IDLE',message:'Your next winning hand starts with one word.'});
+ useEffect(()=>{setDark(document.documentElement.classList.contains('dark'));const a=localStorage.getItem('lws_accent')??'crimson';setAccent(a);document.documentElement.dataset.accent=a;const s=Number(localStorage.getItem('lws_scale')??1);setScale(s);document.documentElement.style.setProperty('--font-scale',String(s));},[]);
+ useEffect(()=>{if(previous.current!==path){void ws.sync();previous.current=path;}},[path,ws.sync]);
+ useEffect(()=>{const listen=(e:Event)=>setJiji((e as CustomEvent).detail);window.addEventListener('jiji-status',listen);return()=>window.removeEventListener('jiji-status',listen);},[]);
+ useEffect(()=>{const t=setInterval(()=>{if(document.hidden)return;ws.addTime();if(running)setPomo(n=>{if(n<=1){setRunning(false);toast.success('Focus hand complete. Take a break.');try{const audio=new AudioContext();const o=audio.createOscillator();const g=audio.createGain();o.connect(g);g.connect(audio.destination);g.gain.value=.08;o.frequency.value=660;o.start();o.stop(audio.currentTime+.5);o.onended=()=>void audio.close();}catch{}return 1500;}return n-1;});},1000);return()=>clearInterval(t);},[ws.addTime,running]);
+ let streak=0;const date=new Date();if(!ws.dailyLog[todayKey(date)])date.setDate(date.getDate()-1);while(ws.dailyLog[todayKey(date)]){streak++;date.setDate(date.getDate()-1);}
+ const all=ws.isAdmin?[...tabs,{to:'/admin',label:'Admin',suit:'⚙'} as const]:tabs;
+ const backup=async()=>{await ws.sync();const blob=new Blob([JSON.stringify(ws.progress(),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='learn-word-smart-backup.json';a.click();URL.revokeObjectURL(url);};
+ const changeScale=(n:number)=>{const v=Math.max(.84,Math.min(1.36,Math.round(n*100)/100));setScale(v);document.documentElement.style.setProperty('--font-scale',String(v));localStorage.setItem('lws_scale',String(v));};
+ const days=ws.profile.subscription_expires_at?Math.ceil((new Date(ws.profile.subscription_expires_at).getTime()-Date.now())/86400000):999;
+ return <><AmbientCanvas/><div className="workspace-shell"><aside className="workspace-sidebar"><Link to="/study" className="brand"><span>♠</span><div>learn word<br/><b>Smart</b></div></Link><div className="sidebar-caption">YOUR STUDY TABLE</div><nav>{all.map(t=><Button key={t.to} asChild variant="ghost" className={`sidebar-link ${path===t.to?'active':''}`}><Link to={t.to}><span>{t.suit}</span>{t.label}</Link></Button>)}</nav><div className="sidebar-bottom"><div className="mb-4 border-t pt-4"><p className="truncate text-xs text-muted-foreground">{ws.profile.email}</p><p className="mt-1 font-mono text-xs text-primary">{ws.isAdmin?'UNLIMITED · OWNER':ws.isPaid?'ACTIVE PRO PASS':'FREE STUDY HAND'}</p></div><JijiWidget state={jiji.state} message={jiji.message}/></div></aside><div className="workspace-main"><div className="mobile-brand font-display">♠ learn word <b>Smart</b></div><header className="utility-pills no-scrollbar"><span className="utility-pill">🔥 Streak: {streak}d</span><label className="utility-pill">📅 Target: <input aria-label="Target date" type="date" value={ws.profile.target_exam_date} onChange={e=>ws.setExamDate(e.target.value)}/></label><span className="utility-pill font-mono">⏱ {clock(ws.profile.study_seconds)} | <Button variant="ghost" size="sm" title="Start or pause Pomodoro" onClick={()=>setRunning(!running)}>🍅 {clock(pomo)}{running?' ⏸':''}</Button></span><Button asChild variant="outline" className="utility-pill"><Link to="/history">🏆 Mastered: {Object.keys(ws.mastered).length} / {ws.totalWords}</Link></Button><div className="utility-pill">Accent: {['crimson','gold','emerald','cobalt','silver'].map(a=><Button key={a} size="icon" variant="ghost" aria-label={`${a} accent`} title={a} className={`accent-dot accent-${a} ${accent===a?'selected':''}`} onClick={()=>{setAccent(a);document.documentElement.dataset.accent=a;localStorage.setItem('lws_accent',a);}}/>)}</div><div className="utility-pill">Text:<Button variant="ghost" size="icon" title="Smaller text" aria-label="Smaller text" onClick={()=>changeScale(scale-.04)}><Minus size={12}/></Button>{Math.round(scale*100)}%<Button variant="ghost" size="icon" title="Larger text" aria-label="Larger text" onClick={()=>changeScale(scale+.04)}><Plus size={12}/></Button></div><Button variant="outline" className="utility-pill" onClick={backup}><Download size={13}/> Backup{ws.dirty?' •':''}</Button><Button variant="outline" className="utility-pill" onClick={()=>restore.current?.click()}><Upload size={13}/> Restore</Button><Button variant="outline" size="icon" title="Toggle theme" aria-label="Toggle theme" onClick={()=>{document.documentElement.classList.toggle('dark',!dark);document.documentElement.dataset.theme=dark?'light':'dark';localStorage.setItem('lws_theme',dark?'light':'dark');setDark(!dark);}}>{dark?<Sun size={15}/>:<Moon size={15}/>}</Button><Button variant="outline" className="utility-pill" onClick={async()=>{await ws.sync();await supabase.auth.signOut();}}><LogOut size={13}/> Logout</Button><input hidden ref={restore} type="file" accept="application/json" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{ws.restore(JSON.parse(await f.text()));toast.success('Backup restored on this device');}catch{toast.error('Invalid backup file');}e.target.value='';}}/></header>{!ws.isAdmin&&ws.isPaid&&days<=7&&<div className="expiry-banner">Your pass expires in {days} days.<Button size="sm" variant="outline" onClick={ws.openPaywall}>Extend Pass</Button></div>}<main className="workspace-content"><Outlet/></main></div><nav className="mobile-nav">{all.map(t=><Button asChild variant="ghost" key={t.to} className={path===t.to?'active':''}><Link to={t.to}><span>{t.suit}</span><small>{t.label}</small></Link></Button>)}</nav><PaywallModal/></div></>;
 }

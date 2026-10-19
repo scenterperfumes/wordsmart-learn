@@ -1,19 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { pageMeta } from "@/lib/metadata";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
-    meta: [
-      { title: "Sign in · Learn Word Smart" },
-      { name: "description", content: "Sign in or create your Learn Word Smart account." },
-      { property: "og:title", content: "Sign in · Learn Word Smart" },
-      { property: "og:description", content: "Sign in to continue studying." },
-    ],
+    meta: pageMeta('Sign in', 'Email and password access to Learn Word Smart.'),
   }),
   component: AuthPage,
 });
@@ -34,17 +29,12 @@ function AuthPage() {
       if (error) { toast.error(error.message); return; }
       nav({ to: "/study" });
     } else {
-      const { error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin + "/study" } });
+      const { data, error } = await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin + "/auth" } });
       setBusy(false);
       if (error) { toast.error(error.message); return; }
-      toast.success("Check your email to confirm your account.");
+      if (data.session) nav({ to: "/study" });
+      else toast.success("Check your email to confirm your account.");
     }
-  };
-  const google = async () => {
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) { toast.error("Google sign-in failed"); return; }
-    if (r.redirected) return;
-    nav({ to: "/study" });
   };
 
   return (
@@ -56,11 +46,10 @@ function AuthPage() {
           <Input type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input type="password" required minLength={6} placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} />
           <Button disabled={busy}>{mode === "in" ? "Sign in" : "Sign up"}</Button>
-          <Button type="button" variant="secondary" onClick={google}>Continue with Google</Button>
         </div>
-        <button type="button" className="mt-4 text-sm text-primary" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+        <Button variant="ghost" type="button" className="mt-4 text-sm text-primary" onClick={() => setMode(mode === "in" ? "up" : "in")}>
           {mode === "in" ? "New here? Create an account" : "Have an account? Sign in"}
-        </button>
+        </Button>
       </form>
     </div>
   );

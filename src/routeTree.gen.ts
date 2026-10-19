@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedWsRouteImport } from './routes/_authenticated/_ws'
 import { Route as AuthenticatedWsAdminRouteImport } from './routes/_authenticated/_ws/admin'
+import { Route as AuthenticatedWsHistoryRouteImport } from './routes/_authenticated/_ws/history'
 import { Route as AuthenticatedWsQuizRouteImport } from './routes/_authenticated/_ws/quiz'
 import { Route as AuthenticatedWsStudyRouteImport } from './routes/_authenticated/_ws/study'
 import { Route as AuthenticatedWsVaultRouteImport } from './routes/_authenticated/_ws/vault'
@@ -41,6 +42,11 @@ const AuthenticatedWsAdminRoute = AuthenticatedWsAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedWsRoute,
 } as any)
+const AuthenticatedWsHistoryRoute = AuthenticatedWsHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedWsRoute,
+} as any)
 const AuthenticatedWsQuizRoute = AuthenticatedWsQuizRouteImport.update({
   id: '/quiz',
   path: '/quiz',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedWsAdminRoute
+  '/history': typeof AuthenticatedWsHistoryRoute
   '/quiz': typeof AuthenticatedWsQuizRoute
   '/study': typeof AuthenticatedWsStudyRoute
   '/vault': typeof AuthenticatedWsVaultRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedWsAdminRoute
+  '/history': typeof AuthenticatedWsHistoryRoute
   '/quiz': typeof AuthenticatedWsQuizRoute
   '/study': typeof AuthenticatedWsStudyRoute
   '/vault': typeof AuthenticatedWsVaultRoute
@@ -80,15 +88,17 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/_ws': typeof AuthenticatedWsRouteWithChildren
   '/_authenticated/_ws/admin': typeof AuthenticatedWsAdminRoute
+  '/_authenticated/_ws/history': typeof AuthenticatedWsHistoryRoute
   '/_authenticated/_ws/quiz': typeof AuthenticatedWsQuizRoute
   '/_authenticated/_ws/study': typeof AuthenticatedWsStudyRoute
   '/_authenticated/_ws/vault': typeof AuthenticatedWsVaultRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/admin' | '/quiz' | '/study' | '/vault'
+  fullPaths:
+    '/' | '/auth' | '/admin' | '/history' | '/quiz' | '/study' | '/vault'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin' | '/quiz' | '/study' | '/vault'
+  to: '/' | '/auth' | '/admin' | '/history' | '/quiz' | '/study' | '/vault'
   id:
     | '__root__'
     | '/'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/_ws'
     | '/_authenticated/_ws/admin'
+    | '/_authenticated/_ws/history'
     | '/_authenticated/_ws/quiz'
     | '/_authenticated/_ws/study'
     | '/_authenticated/_ws/vault'
@@ -144,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWsAdminRouteImport
       parentRoute: typeof AuthenticatedWsRoute
     }
+    '/_authenticated/_ws/history': {
+      id: '/_authenticated/_ws/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedWsHistoryRouteImport
+      parentRoute: typeof AuthenticatedWsRoute
+    }
     '/_authenticated/_ws/quiz': {
       id: '/_authenticated/_ws/quiz'
       path: '/quiz'
@@ -170,6 +188,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedWsRouteChildren {
   AuthenticatedWsAdminRoute: typeof AuthenticatedWsAdminRoute
+  AuthenticatedWsHistoryRoute: typeof AuthenticatedWsHistoryRoute
   AuthenticatedWsQuizRoute: typeof AuthenticatedWsQuizRoute
   AuthenticatedWsStudyRoute: typeof AuthenticatedWsStudyRoute
   AuthenticatedWsVaultRoute: typeof AuthenticatedWsVaultRoute
@@ -177,6 +196,7 @@ interface AuthenticatedWsRouteChildren {
 
 const AuthenticatedWsRouteChildren: AuthenticatedWsRouteChildren = {
   AuthenticatedWsAdminRoute: AuthenticatedWsAdminRoute,
+  AuthenticatedWsHistoryRoute: AuthenticatedWsHistoryRoute,
   AuthenticatedWsQuizRoute: AuthenticatedWsQuizRoute,
   AuthenticatedWsStudyRoute: AuthenticatedWsStudyRoute,
   AuthenticatedWsVaultRoute: AuthenticatedWsVaultRoute,
