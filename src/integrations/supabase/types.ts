@@ -101,6 +101,8 @@ export type Database = {
           last_master_id: number
           mastered_words: Json
           preferences: Json
+          security_answer_hash: string | null
+          security_question: string | null
           study_seconds: number
           subscription_expires_at: string | null
           subscription_status: string
@@ -123,6 +125,8 @@ export type Database = {
           last_master_id?: number
           mastered_words?: Json
           preferences?: Json
+          security_answer_hash?: string | null
+          security_question?: string | null
           study_seconds?: number
           subscription_expires_at?: string | null
           subscription_status?: string
@@ -145,6 +149,8 @@ export type Database = {
           last_master_id?: number
           mastered_words?: Json
           preferences?: Json
+          security_answer_hash?: string | null
+          security_question?: string | null
           study_seconds?: number
           subscription_expires_at?: string | null
           subscription_status?: string
@@ -188,6 +194,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      security_reset_attempts: {
+        Row: {
+          attempted_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          attempted_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          attempted_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -275,6 +299,7 @@ export type Database = {
         Args: { _answers: Json; _progress: Json; _session: string }
         Returns: Json
       }
+      get_security_question: { Args: { _email: string }; Returns: string }
       has_active_pass: { Args: { _uid: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -284,6 +309,14 @@ export type Database = {
         Returns: boolean
       }
       reset_my_devices: { Args: never; Returns: boolean }
+      reset_password_with_answer: {
+        Args: { _answer: string; _email: string; _new_password: string }
+        Returns: boolean
+      }
+      set_security_answer: {
+        Args: { _answer: string; _question: string }
+        Returns: undefined
+      }
       start_timed_quiz: {
         Args: { _ids: number[]; _trial: boolean }
         Returns: Json
