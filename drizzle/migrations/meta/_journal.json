@@ -15,6 +15,13 @@
       "when": 1792342962751,
       "tag": "0001_solitaire_overhaul",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792561861412,
+      "tag": "0002_security_question_password_reset",
+      "breakpoints": true
     }
   ]
 }
