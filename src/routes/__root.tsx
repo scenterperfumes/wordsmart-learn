@@ -117,10 +117,14 @@ function RootComponent() {
   useEffect(() => installRequestGuard(), []);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+    let current: string | null | undefined;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      const id = session?.user?.id ?? null;
+      if (current === undefined) { current = id; return; }
+      if (id === current) return; // ignore token refreshes / tab-focus re-emits
+      current = id;
       router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (id) queryClient.invalidateQueries();
       else queryClient.clear();
     });
     return () => data.subscription.unsubscribe();
