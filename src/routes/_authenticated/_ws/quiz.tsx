@@ -6,7 +6,6 @@ import { JijiBar,type JijiState } from '@/components/Jiji';
 import { Definition } from '@/components/Definition';
 import { Button } from '@/components/ui/button';
 import { FORMATS,LETTERS,buildQuestion,shuffle,type Question,type QuizFormat,type History } from '@/lib/words';
-import { burstConfetti } from '@/lib/device';
 import { supabase } from '@/integrations/supabase/client';
 import { pageMeta } from '@/lib/metadata';
 import { toast } from 'sonner';
